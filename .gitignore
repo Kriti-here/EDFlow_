@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Spike outputs
+scripts/spike_out/
+spike_out/
