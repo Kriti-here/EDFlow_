@@ -26,8 +26,14 @@ DEFAULT_DETECTORS: dict[str, str] = {
     "gstin": r"\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b",
     "pan": r"\b[A-Z]{5}\d{4}[A-Z]\b",
     "utr": r"\b[A-Z]{4}\d{7,}\b",
-    "account": r"\b\d{9,18}\b",
-    "phone": r"(?<!\d)(?:\+?\d[\d\s-]{7,}\d)(?!\d)",
+    # A bare 10-digit run is ambiguous: an IEC code (a business identifier that
+    # must stay visible, B8 decision 4) looks identical to a 10-digit account.
+    # Account numbers therefore require 11-18 digits and must not directly follow
+    # a '+', so the digit body of an international phone falls through to `phone`.
+    "account": r"(?<![\d+])\d{11,18}(?!\d)",
+    # Phones must carry a leading '+' or an internal separator; otherwise a plain
+    # 10-digit run (e.g. an IEC code) would be misread as a phone number.
+    "phone": r"(?<!\d)(?=\+|\d[\d\s-]*[-\s])\+?\d[\d\s-]{7,}\d(?!\d)",
 }
 
 
