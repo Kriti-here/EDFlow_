@@ -9,12 +9,25 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..db import get_db
-from ..models import Client, ExporterProfile, Invoice
-from ..services import audit, invoice_service as svc, ledger
+from ..models import Client, ExporterProfile, Invoice, Payment
+from ..rules import engine as rules_engine
+from ..rules.loader import RulesConfigError
+from ..services import audit, invoice_service as svc, ledger, true_cost
+from ..services.fx import FxClient, FxError, get_fx
 from ..services.paypal_client import PayPalClient, PayPalError, get_paypal
 from ..services.paypal_mapper import extract_capture, map_capture, map_invoice_transaction
 
 router = APIRouter()
+
+
+def _rule_info(inv: Invoice) -> dict:
+    """Rules-derived fields for an invoice. Degrades to nulls if the rules file is unavailable."""
+    try:
+        return {"edf_due_date": rules_engine.edf_due_date(inv.issue_date).isoformat(),
+                "edf_days_remaining": rules_engine.days_remaining(inv.issue_date),
+                "purpose_code_verified": rules_engine.validate_purpose_code(inv.purpose_code)["verified"]}
+    except RulesConfigError:
+        return {"edf_due_date": None, "edf_days_remaining": None, "purpose_code_verified": None}
 
 
 class InvoiceIn(BaseModel):
@@ -36,7 +49,8 @@ def inv_out(i: Invoice) -> dict:
             "issue_date": i.issue_date.isoformat(), "due_date": i.due_date.isoformat(),
             "service_description": i.service_description, "contract_ref": i.contract_ref,
             "purpose_code": i.purpose_code, "status": i.status, "paypal_invoice_id": i.paypal_invoice_id,
-            "paypal_invoice_url": i.paypal_invoice_url, "paypal_order_id": i.paypal_order_id}
+            "paypal_invoice_url": i.paypal_invoice_url, "paypal_order_id": i.paypal_order_id,
+            **_rule_info(i)}
 
 
 def get_inv(db: Session, inv_id: int) -> Invoice:
@@ -189,3 +203,46 @@ async def sync_payments(db: Session = Depends(get_db), pp: PayPalClient = Depend
 @router.get("/ledger")
 def get_ledger(db: Session = Depends(get_db)):
     return ledger.ledger_rows(db)
+
+
+@router.get("/payments/{payment_id}/true-cost")
+async def payment_true_cost(payment_id: int, db: Session = Depends(get_db), fx: FxClient = Depends(get_fx)):
+    """Fee + FX cost of one payment, valued in INR at the mid-market rate.
+
+    `source` is the middle-market rate origin (frankfurter or simulated); `sources.receivable`
+    is where the received amount came from (paypal or simulated). Nothing is ever silently mixed.
+    """
+    pay = db.get(Payment, payment_id)
+    if not pay:
+        raise HTTPException(404, "Payment not found")
+    target = "INR"
+    currency = pay.currency or target
+    try:
+        mid = await fx.rate(currency, target)
+    except FxError as e:
+        raise HTTPException(502, {"message": "FX rate unavailable", "detail": e.detail})
+    paypal_rate = pay.fx_rate if pay.fx_rate_source == "paypal" else None
+    tc = true_cost.compute_true_cost(gross=pay.gross, paypal_fee=pay.paypal_fee, net=pay.net,
+                                     mid_rate=mid.rate, target_currency=target,
+                                     receivable_amount=pay.receivable_amount,
+                                     receivable_currency=pay.receivable_currency,
+                                     paypal_rate=paypal_rate)
+    dec = ledger.decimal_text
+    return {
+        "payment_id": pay.id,
+        "capture_id": pay.paypal_capture_id,
+        "invoice": pay.invoice.number if pay.invoice else None,
+        "currency": currency,
+        "target_currency": target,
+        "source": mid.source,
+        "sources": {"fx_rate": mid.source, "receivable": tc["actual_source"]},
+        "fx": {"rate": dec(mid.rate), "source": mid.source, "as_of": mid.as_of},
+        "gross": dec(tc["gross"]),
+        "paypal_fee": dec(tc["paypal_fee"]),
+        "net": dec(tc["net"]),
+        "fee_percent": dec(tc["fee_percent"]),
+        "mid_market_value": dec(tc["mid_market_value"]),
+        "actual_value": dec(tc["actual_value"]),
+        "fx_markup_percent": dec(tc["fx_markup_percent"]),
+        "total_cost_percent": dec(tc["total_cost_percent"]),
+    }

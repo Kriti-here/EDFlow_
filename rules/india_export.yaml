@@ -433,3 +433,215 @@ edf_annex_fields:
     title: "5. Space for use of Specified Authority (Custom/SEZ/AD/STPI):"
     applies_to: ["goods", "services", "software"]
     authorities_named: ["Custom", "SEZ", "Authorised Dealer", "STPI"]
+
+# B11 matching configuration. Weights and thresholds for the deterministic
+# FIRA->ledger matching engine (app/services/matching.py). Never hardcode these
+# in code (AGENTS.md rule 6). Weights are in basis points and sum to 10000.
+# `reference_rates_inr` is a SIMULATED mid-market table used only to detect FX
+# variance offline (no network in matching); it is not a regulation.
+matching:
+  engine_version: "b11.1"
+  date_window_days: 120
+  amount_tolerance: "0.00"
+  fx_variance_tolerance_percent: "0.50"
+  confidence:
+    high_bp: 7000
+    medium_bp: 4000
+  weights_bp:
+    reference_present: 7000
+    reference_resolved: 1000
+    amount_match: 1200
+    currency_match: 500
+    remitter_match: 200
+    date_within_window: 100
+  reference_rates_inr:
+    source: "simulated"
+    rates:
+      USD: "84.00"
+      GBP: "106.00"
+      EUR: "91.00"
+      SGD: "62.00"
+  remitter_legal_suffixes:
+    - "inc"
+    - "llc"
+    - "ltd"
+    - "limited"
+    - "gmbh"
+    - "pte"
+    - "plc"
+    - "corp"
+    - "co"
+    - "pvt"
+    - "private"
+    - "company"
+
+# B13 exception engine configuration. Which categories raise an exception and at
+# what severity is data, not code (AGENTS.md rule 6). `duplicate` and `fx_variance`
+# are enabled by default; `fx_variance` defaults to LOW severity as approved. The
+# engine never mutates a match record; it only tracks the review lifecycle.
+exceptions:
+  engine_version: "b13.1"
+  default_severity: "medium"
+  auto_close_note: "Condition no longer present"
+  categories:
+    # Line-level categories mirror the B11 match types one-for-one.
+    unmatched:
+      enabled: true
+      severity: "high"
+    ambiguous:
+      enabled: true
+      severity: "medium"
+    duplicate:
+      enabled: true
+      severity: "medium"
+    fx_variance:
+      enabled: true
+      severity: "low"
+    missing_reference:
+      enabled: true
+      severity: "medium"
+    # Ledger-level categories are gaps between the FIRA/match state and the ledger.
+    missing_fira:
+      enabled: true
+      severity: "high"
+    missing_payment:
+      enabled: true
+      severity: "medium"
+    orphan_payment:
+      enabled: true
+      severity: "medium"
+
+# B12 purpose code adviser configuration. The keyword lexicon, the signal weights
+# and the confidence thresholds are data, not code (AGENTS.md rule 6). Scoring is
+# deterministic and integer-only (basis points) -- there is no AI and no network.
+# The adviser only *proposes*: a human accept is the sole way Invoice.purpose_code
+# changes (AGENTS.md rule 2).
+purpose_adviser:
+  engine_version: "b12.1"
+  fallback_code: "P1099"
+  # Historic scoring learns only from committed codes (source user/adviser_accepted);
+  # proposed/rejected/superseded recommendations are never used as evidence.
+  history_token_overlap_percent: "50"
+  stopwords:
+    - "services"
+    - "service"
+    - "and"
+    - "the"
+    - "for"
+    - "of"
+    - "to"
+    - "a"
+    - "in"
+    - "on"
+    - "with"
+  # Keyword phrases per purpose code. Phrases are matched as whole-token sequences
+  # after stopword removal; the earliest (then longest) match is the primary cue.
+  keywords:
+    P0801: ["hardware", "hardware consultancy"]
+    P0802: ["software", "software development", "software consultancy", "implementation", "customization", "programming", "coding"]
+    P0803: ["data processing", "database", "web hosting", "portal"]
+    P0807: ["digital publishing", "content curation", "news agency", "publishing"]
+    P0902: ["telecommunication", "telecom", "voip", "call centre", "remote support"]
+    P1004: ["legal", "litigation", "attorney"]
+    P1005: ["accounting", "book keeping", "tax consulting", "auditing"]
+    P1006: ["business management", "consultancy", "consulting", "public relations", "management"]
+    P1007: ["advertising", "trade fair", "market research", "public opinion polling"]
+    P1008: ["research and development", "scientific research", "research"]
+    P1009: ["architectural", "architecture", "engineering", "technical services"]
+    P1099: ["freelance", "virtual assistance", "content creation"]
+    P1101: ["audio visual", "film", "music royalty"]
+    P1401: ["refund", "rebate"]
+  # Signal weights in basis points; must sum to exactly 10000 (asserted by a test).
+  weights_bp:
+    keyword_primary: 5500
+    fira_echo: 2000
+    keyword_phrase: 1000
+    history_same_client: 700
+    history_similar_service: 500
+    contract_ref_match: 300
+  confidence:
+    high_bp: 7000
+    medium_bp: 4000
+
+# B16 EDF pack generation configuration. Every EDF constant, the included-status
+# policy and the blocking-exception policy are data, not code (AGENTS.md rule 6).
+# Generation is deterministic, offline and Decimal-only: it derives the worksheet
+# from the ledger and never files anything with a bank or the RBI (AGENTS.md).
+edf_pack:
+  engine_version: "b16.1"
+  # Section 1 constants. Mirrors the verified labels in `edf_annex_fields`.
+  trade_type: "Service"
+  mode_of_transport: "Internet"
+  category_of_exporter: "Custom (DTA units)"
+  mode_of_realisation: "Others (advance payment, etc. including transfer/remittance to bank a/c maintained overseas)"
+  consignee_for_multiple: "As per 2B"
+  country_for_multiple: "As per 2B"
+  date_placeholder: "N/A"
+  # Only raised invoices are declared; DRAFT invoices are excluded.
+  included_statuses: ["SENT", "PAID"]
+  # A pack cannot be approved while any of these categories has an open exception.
+  blocking_exception_categories:
+    - "unmatched"
+    - "missing_fira"
+    - "missing_payment"
+  worksheet_note: "DRAFT WORKSHEET - NOT FILED. Submit through your AD bank / CA."
+  # Section 4 declaration. {realisation_date} is the computed realisation deadline.
+  declaration_template: >-
+    We hereby declare that the information given above is true and correct to the
+    best of our knowledge and belief and that the export proceeds will be realised
+    and repatriated within the period prescribed, i.e. on or before
+    {realisation_date}.
+
+# B8 AI layer configuration. The AI proposes, code decides and a human approves
+# (AGENTS.md rule 2): proposals are task-oriented, Pydantic-validated and
+# deterministically re-checked before a human may accept them. Provider/model
+# defaults, limits and the PII detector set are data, not code (rule 6). AI is
+# disabled by default (AI_MODE=off) and `replay` makes zero network calls.
+ai:
+  engine_version: "b8.1"
+  default_provider: "gemini"
+  default_model: "gemini-2.0-flash"
+  limits:
+    max_prompt_bytes: 16000
+    max_output_tokens: 1024
+    max_retries: 2
+    timeout_seconds: 30
+    temperature: 0.0
+  # Only task-oriented adopters exist; there is deliberately no generic chat task.
+  tasks:
+    purpose_explain:
+      enabled: true
+      task_version: "b8.1"
+      provider: "gemini"
+      model: "gemini-2.0-flash"
+      high_bp: 7000
+      medium_bp: 4000
+      verify_weights_bp:
+        code_known: 4000
+        mentions_code: 2500
+        adequate_length: 1500
+        no_pii: 2000
+    exception_remediation:
+      enabled: true
+      task_version: "b8.1"
+      provider: "gemini"
+      model: "gemini-2.0-flash"
+      high_bp: 7000
+      medium_bp: 4000
+      verify_weights_bp:
+        known_category: 4000
+        mentions_category: 2500
+        adequate_length: 1500
+        no_pii: 2000
+  # PII is masked before egress (rule 5). These detectors run over free text; the
+  # AD code, IEC code, SAC code, purpose code and currency codes are deliberately
+  # NOT masked -- they are business identifiers, not personal data (B8 decision 4).
+  pii:
+    placeholder_format: "[[{kind}_{n}]]"
+    detectors:
+      email: '[\w.+-]+@[\w-]+\.[\w.-]+'
+      gstin: '\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b'
+      pan: '\b[A-Z]{5}\d{4}[A-Z]\b'
+      utr: '\b[A-Z]{4}\d{7,}\b'
+      account: '\b\d{9,18}\b'
+      phone: '(?<!\d)(?:\+?\d[\d\s-]{7,}\d)(?!\d)'

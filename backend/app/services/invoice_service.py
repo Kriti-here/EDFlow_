@@ -7,6 +7,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Client, ExporterProfile, Invoice
+from ..rules import engine as rules_engine
+from ..rules.loader import RulesConfigError
 
 ALLOWED_CURRENCIES = {"USD", "EUR", "GBP", "AUD", "CAD", "SGD"}
 
@@ -26,6 +28,12 @@ def presend_problems(inv: Invoice, exporter: ExporterProfile | None) -> list[str
     problems = []
     if not inv.purpose_code:
         problems.append("Purpose code is missing")
+    else:
+        try:
+            if not rules_engine.validate_purpose_code(inv.purpose_code)["valid"]:
+                problems.append(f"Unknown purpose code {inv.purpose_code}")
+        except RulesConfigError:
+            problems.append("Rules configuration unavailable")
     if exporter is None:
         return problems + ["Exporter profile is not set"]
     if not exporter.gstin:

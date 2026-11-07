@@ -23,16 +23,25 @@ class ExporterIn(BaseModel):
     lut_number: str | None = None
     lut_not_applicable: bool = False
     ad_bank_name: str | None = None
+    # EDF Section 1 identity (B16).
+    ad_code: str | None = None
+    ie_code: str | None = None
+    address: str | None = None
+    sac_code: str | None = None
 
 
 @router.put("/exporter")
 def put_exporter(body: ExporterIn, db: Session = Depends(get_db)):
-    ex = db.scalars(select(ExporterProfile)).first() or ExporterProfile(legal_name=body.legal_name)
+    ex = db.scalars(select(ExporterProfile)).first() or ExporterProfile(
+        legal_name=body.legal_name
+    )
     for k, v in body.model_dump().items():
         setattr(ex, k, v)
     db.add(ex)
     db.flush()
-    audit.append(db, "user", "exporter.saved", "exporter", ex.id, {"entity_type": ex.entity_type})
+    audit.append(
+        db, "user", "exporter.saved", "exporter", ex.id, {"entity_type": ex.entity_type}
+    )
     db.commit()
     return {"id": ex.id, **body.model_dump()}
 
@@ -48,7 +57,22 @@ def get_exporter(db: Session = Depends(get_db)):
 @router.get("/audit")
 def get_audit(limit: int = 100, db: Session = Depends(get_db)):
     ok, bad = audit.verify_chain(db)
-    rows = db.scalars(select(AuditLog).order_by(AuditLog.id.desc()).limit(min(limit, 500))).all()
-    return {"chain_ok": ok, "first_bad_row": bad,
-            "entries": [{"id": r.id, "ts": r.ts, "actor": r.actor, "action": r.action, "entity": r.entity,
-                         "entity_id": r.entity_id, "hash": r.hash[:12]} for r in rows]}
+    rows = db.scalars(
+        select(AuditLog).order_by(AuditLog.id.desc()).limit(min(limit, 500))
+    ).all()
+    return {
+        "chain_ok": ok,
+        "first_bad_row": bad,
+        "entries": [
+            {
+                "id": r.id,
+                "ts": r.ts,
+                "actor": r.actor,
+                "action": r.action,
+                "entity": r.entity,
+                "entity_id": r.entity_id,
+                "hash": r.hash[:12],
+            }
+            for r in rows
+        ],
+    }
