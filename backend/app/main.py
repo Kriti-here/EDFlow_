@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .db import init_db
 from .routers import (
+    ai,
     core,
     edf,
     exceptions,
@@ -40,3 +41,4 @@ app.include_router(matches.router)
 app.include_router(exceptions.router)
 app.include_router(purpose.router)
 app.include_router(edf.router)
+app.include_router(ai.router)

@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     # B8 AI layer. Disabled by default: `ai_mode = "off"` means no provider is ever
     # called. `replay` serves recorded fixtures and never touches the network;
     # `record`/`live` are opt-in. The key is read only from the environment (rule 3).
+    # The AI router only serves when ai_enabled is true AND ai_mode is not "off".
+    ai_enabled: bool = False  # master switch for the /ai router
     ai_mode: str = "off"  # off | replay | record | live
     ai_provider: str = "none"  # none | gemini
     ai_api_key: str = Field(
