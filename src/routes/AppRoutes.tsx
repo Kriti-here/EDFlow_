@@ -7,7 +7,7 @@ import Dashboard from "../pages/Dashboard";
 import EDFPacks from "../pages/EDFPacks";
 import ExceptionsHub from "../pages/ExceptionsHub";
 import FiraDocuments from "../pages/FiraDocuments";
-import Invoices from "../pages/Invoices";
+import InvoicesPage from "../pages/InvoicesPage";
 import LandingPage from "../pages/LandingPage";
 import MatchingCenter from "../pages/MatchingCenter";
 import NotFound from "../pages/NotFound";
@@ -27,7 +27,7 @@ function AppRoutes() {
 
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/fira" element={<FiraDocuments />} />
           <Route path="/matching" element={<MatchingCenter />} />
           <Route path="/exceptions" element={<ExceptionsHub />} />
