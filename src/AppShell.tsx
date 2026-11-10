@@ -1,5 +1,6 @@
 // src/components/common/AppShell.tsx
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 interface AppShellProps {
