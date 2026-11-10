@@ -26,9 +26,9 @@ function Sidebar({ open, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-surface-container-high/80 bg-surface-container-lowest transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:bottom-auto lg:h-screen lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-surface-container-high/80 bg-surface-container-lowest transition-transform duration-300 ease-out ${
           open ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-        }`}
+        } lg:sticky lg:top-0 lg:bottom-auto lg:h-screen lg:translate-x-0`}
       >
         <Link
           to="/"
