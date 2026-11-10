@@ -1,4 +1,5 @@
 import React from 'react';
+import Reveal from '../components/common/Reveal';
 import {
   AIInsightsHeader,
   EngineStatusCard,
@@ -10,6 +11,7 @@ import {
   DriftIndicator,
   DecisionsSection,
   GuardrailsSection,
+  HeroKPICard,
 } from '../components/aiinsights';
 import {
   engineStatus,
@@ -29,53 +31,103 @@ const AIInsights: React.FC = () => {
     <div className="flex flex-col relative w-full pt-16 pb-24 bg-surface">
       <div className="flex flex-col w-full">
         <div className="w-full max-w-3xl mx-auto px-space-base py-space-md flex flex-col gap-space-lg">
-          {/* Header Section */}
           <AIInsightsHeader />
 
-          {/* Global Engine Status Strip */}
-          <EngineStatusCard data={engineStatus} />
+          <Reveal>
+            <EngineStatusCard data={engineStatus} />
+          </Reveal>
 
-          {/* Deterministic Replay Card */}
-          <ReplayCacheCard data={replayCache} />
+          <HeroKPICard />
 
-          {/* Governance Performance Bento Grid */}
-          <div className="grid grid-cols-2 gap-space-sm">
-            {metricCards.map((card) => (
-              <MetricCard key={card.id} data={card} />
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+            <Reveal delay={0.2}>
+              <MetricCard
+                data={{
+                  id: 'speed',
+                  label: 'Speed Improvement',
+                  value: '1.2s',
+                  subtitle: 'vs 45m Manual Review',
+                  icon: 'speed',
+                  iconColor: 'text-secondary',
+                }}
+                size="large"
+              />
+            </Reveal>
+            <Reveal delay={0.2}>
+              <MetricCard
+                data={{
+                  id: 'precision',
+                  label: 'Overall Precision',
+                  value: '98.4%',
+                  subtitle: '1,248 Remittance Checks',
+                  icon: 'target',
+                  iconColor: 'text-primary',
+                }}
+                size="large"
+              />
+            </Reveal>
           </div>
 
-          {/* Forensic Deep Dive */}
-          <ForensicAuditCard data={forensicAudit} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+            <Reveal delay={0.3}>
+              <MetricCard
+                data={{
+                  id: 'uptime',
+                  label: 'System Uptime',
+                  value: '99.98%',
+                  subtitle: 'Claude 3.5 + GPT-4o &middot; 420ms',
+                  icon: 'neurology',
+                  iconColor: 'text-primary',
+                }}
+                size="medium"
+              />
+            </Reveal>
+            <Reveal delay={0.3}>
+              <MetricCard data={metricCards[1]} size="medium" />
+            </Reveal>
+          </div>
 
-          {/* Automated Heuristics & Tolerance Resolvers */}
-          <HeuristicsSection
-            items={heuristicItems}
-            title="Automated Exception Remediation"
-            subtitle="2 HEURISTICS ACTIVE"
-          />
+          <Reveal delay={0.4}>
+            <ReplayCacheCard data={replayCache} />
+          </Reveal>
 
-          {/* AI Confidence Distribution & Drift Analysis */}
-          <ConfidenceDistribution
-            bars={confidenceBars}
-            title="Inference Distribution & Stability"
-            subtitle="Regulatory baseline vs current runtime"
-            icon="verified"
-          />
+          <Reveal delay={0.5}>
+            <ForensicAuditCard data={forensicAudit} />
+          </Reveal>
 
-          {/* Drift Indicator */}
-          <DriftIndicator {...driftInfo} />
+          <Reveal delay={0.6}>
+            <HeuristicsSection
+              items={heuristicItems}
+              title="Automated Exception Remediation"
+              subtitle="2 HEURISTICS ACTIVE"
+            />
+          </Reveal>
 
-          {/* Human-in-the-Loop Decisions */}
-          <DecisionsSection
-            records={decisionRecords}
-            tabs={filterTabs}
-            title="Human-in-the-Loop Decisions"
-            subtitle="Complete audit trail of accepted recommendations and auditor overrides."
-          />
+          <Reveal delay={0.7}>
+            <ConfidenceDistribution
+              bars={confidenceBars}
+              title="Inference Distribution & Stability"
+              subtitle="Regulatory baseline vs current runtime"
+              icon="verified"
+            />
+          </Reveal>
 
-          {/* Human Oversight Guardrails */}
-          <GuardrailsSection items={guardrailItems} />
+          <Reveal delay={0.8}>
+            <DriftIndicator {...driftInfo} />
+          </Reveal>
+
+          <Reveal delay={0.9}>
+            <DecisionsSection
+              records={decisionRecords}
+              tabs={filterTabs}
+              title="Human-in-the-Loop Decisions"
+              subtitle="Complete audit trail of accepted recommendations and auditor overrides."
+            />
+          </Reveal>
+
+          <Reveal delay={1.0}>
+            <GuardrailsSection items={guardrailItems} />
+          </Reveal>
         </div>
       </div>
     </div>

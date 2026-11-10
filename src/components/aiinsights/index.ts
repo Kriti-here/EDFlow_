@@ -14,3 +14,4 @@ export { default as ConfidenceDistribution } from './ConfidenceDistribution';
 export { default as GuardrailsSection } from './GuardrailsSection';
 export { default as HeuristicsSection } from './HeuristicsSection';
 export { default as DecisionsSection } from './DecisionsSection';
+export { default as HeroKPICard } from './HeroKPICard';
