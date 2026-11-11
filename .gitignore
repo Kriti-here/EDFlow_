@@ -222,3 +222,6 @@ __marimo__/
 # Spike outputs
 scripts/spike_out/
 spike_out/
+
+# Node
+node_modules/
